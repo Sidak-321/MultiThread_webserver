@@ -4,6 +4,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sstream>
 
 int main() {
     // intialise socket
@@ -48,23 +49,53 @@ int main() {
 
         std::cout << "Client connected\n";
         // read data from the client
-        char buffer[1024] = {0};
-        ssize_t bytes = read(client_fd, buffer, sizeof(buffer));
+         char buffer[4096]={0};
+         ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer));
+         if (bytes_read < 0) {
+             std::cerr << "Failed to read from client\n";
+             close(client_fd);
+             continue;  
+         }
+         std:: string request(buffer);
 
-        if (bytes <= 0) {
-            std::cerr << "Read failed\n";
-            close(client_fd);
-            continue;
+         size_t pos = request.find("\r\n");
+        std::string request_line = request.substr(0, pos);
+         
+        std::cout<<"Request Line: " << request_line << std::endl;
+        
+        std::istringstream iss(request_line);
+        std::string method, path, version;
+        iss >> method >> path >> version;
+        std::cout << "Method: " << method << ", Path: " << path << ", Version: " << version << std::endl;
+
+        //routing
+
+        std :: string body;
+        if(path=="/")
+        {
+            body="<h1>welcome to my server</h1>";
         }
+        else if(path=="/about")
+        {
+            body="<h1>this is a simple http server implemented in c++</h1>";
+        }
+        else
+        {
+            body="<h1>404 not found</h1>";
+        }
+        // response 
+        std :: string response =
+           "HTTP/1.1 200 OK\r\n"
+              "Content-Type: text/html\r\n" 
+                "Content-Length: " + std::to_string(body.size()) + "\r\n"
+                "Connection: close\r\n"
+                "\r\n" + body;
 
-        std::cout << "Received:\n" << buffer << std::endl;
-
-        const char* response = "Hello from Phase 1 Server\n";
-        send(client_fd, response, strlen(response), 0);
-
-        close(client_fd);
+        // send response to the client
+        send(client_fd, response.c_str(), response.size(), 0);
+      
     }
 
-    close(server_fd);
+
     return 0;
 }
